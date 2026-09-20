@@ -64,6 +64,17 @@ function App(){
  const checkConnections=async()=>{
    try{const[r1,r2]=await Promise.all([fetch('/api/github-check'),fetch('/api/vercel-check')]);setConnections({github:r1.ok,vercel:r2.ok});setMessage(r1.ok&&r2.ok?'GitHub and Vercel connections are working.':'One or more integrations need attention.');}catch{setMessage('Could not reach the Studio integration API.');}
  };
+const publishVintelTool=async()=>{
+    if(!selectedSite?.managed){setMessage('Select the connected vinteltool.site site first.');return;}
+    setMessage('Publishing changes to vinteltool.site…');
+    try{
+      const r=await fetch('/api/publish-vinteltool',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({siteId:selectedSite.id,domain:selectedSite.domain,branding:currentBrand})});
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok||!data.ok){setMessage(data.error||'Publishing failed.');return;}
+      setMessage('Published to vinteltool.site. Vercel will deploy the connected site automatically.');
+      setSites(prev=>prev.map(site=>site.id===selectedSite.id?{...site,status:'Connected'}:site));
+    }catch{setMessage('Could not reach the Studio publisher.');}
+  };
  const go=(id:string)=>{setSection(id);setMenuOpen(false);};
  const startCreate=()=>{setSection('editor');setCreateStep(0);setMenuOpen(false);setMessage('');setSiteName('');setDomain('');setCommissionAccepted(false);setWizardTitleSuffix('Advanced Trading');setWizardTabStyle('solid');setWizardBotCardStyle('compact');};
  const steps=['Platform Type','Basic Information','Branding','Theme'];
@@ -377,16 +388,6 @@ createRoot(document.getElementById('root')!).render(<App/>);      {createStep===
         {['gradient','card','minimal','compact'].map(style=><button type="button" key={style} className={wizardBotCardStyle===style?'botStyle selected':'botStyle'} onClick={()=>setWizardBotCardStyle(style)}><div className={'botMock '+style}><strong>1. Bi Trading Even Odd Bot</strong><span>Trading bot with built-in risk controls.</span><button type="button" onClick={e=>e.stopPropagation()}>Load Bot</button></div><strong>{style.charAt(0).toUpperCase()+style.slice(1)}</strong><small>{style==='gradient'?'Dark branded rows with strong contrast.':style==='card'?'Spacious cards with a premium presentation.':style==='minimal'?'Clean rows with subtle borders and no heavy shadow.':'Dense cards that display more bots at once.'}</small>{wizardBotCardStyle===style&&<b>✓</b>}</button>)}
        </div>
       </div>}
-  const publishVintelTool=async()=>{
-    if(!selectedSite?.managed){setMessage('Select the connected vinteltool.site site first.');return;}
-    setMessage('Publishing changes to vinteltool.site…');
-    try{
-      const r=await fetch('/api/publish-vinteltool',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({siteId:selectedSite.id,domain:selectedSite.domain,branding:currentBrand})});
-      const data=await r.json().catch(()=>({}));
-      if(!r.ok||!data.ok){setMessage(data.error||'Publishing failed.');return;}
-      setMessage('Published to vinteltool.site. Vercel will deploy the connected site automatically.');
-      setSites(prev=>prev.map(site=>site.id===selectedSite.id?{...site,status:'Connected'}:site));
-    }catch{setMessage('Could not reach the Studio publisher.');}
-  };
+  
 
 

@@ -24,7 +24,8 @@ function loadBranding(sites:Site[]):Record<string,Branding>{ try { const value=l
 function saveFile(file:File,onDone:(data:string)=>void){ const reader=new FileReader(); reader.onload=()=>onDone(String(reader.result||'')); reader.readAsDataURL(file); }
 
 function App(){
- const [section,setSection]=useState('sites');
+ const [section,setSection]=useState('dashboard');
+ const [menuOpen,setMenuOpen]=useState(false);
  const [selectedTemplate,setSelectedTemplate]=useState('core');
  const [siteName,setSiteName]=useState('');
  const [domain,setDomain]=useState('');
@@ -51,29 +52,76 @@ function App(){
    const newSite:Site={id,name:siteName.trim(),domain:domain.trim()||'Not connected',template:selectedTemplate,status:'Draft'};
    setSites(prev=>[...prev,newSite]);
    setBranding(prev=>({...prev,[id]:defaultBranding(newSite.name)}));
-   setSelectedSiteId(id); setSiteName(''); setDomain(''); setMessage('Site created as a draft.'); setSection('branding');
+   setSelectedSiteId(id); setSiteName(''); setDomain(''); setMessage('Site created as a draft.'); setSection('branding'); setMenuOpen(false);
  };
  const checkConnections=async()=>{
    try{const[r1,r2]=await Promise.all([fetch('/api/github-check'),fetch('/api/vercel-check')]);setConnections({github:r1.ok,vercel:r2.ok});setMessage(r1.ok&&r2.ok?'GitHub and Vercel connections are working.':'One or more integrations need attention.');}catch{setMessage('Could not reach the Studio integration API.');}
  };
+ const go=(id:string)=>{setSection(id);setMenuOpen(false);};
+ const dashboardSites=sites.slice(0,3);
+
+ const navGroups=[
+  {title:'SITE MANAGEMENT',items:[['dashboard','Dashboard','▦'],['sites','Sites','◎'],['templates','Templates','▤'],['branding','Branding','◉'],['editor','Pages / Editor','□'],['features','Features','✣'],['preview','Preview','▣']]},
+  {title:'DEPLOYMENT',items:[['github','GitHub','◌'],['vercel','Vercel','▲'],['domains','Domains','◎'],['deployments','Deployments','◇']]},
+  {title:'SETTINGS',items:[['settings','Settings','⚙'],['help','Help & Support','?']]}
+ ];
 
  return <div className="studio">
-  <aside className="sidebar">
-   <div className="brand"><div className="brandMark">V</div><div><strong>VintelTool</strong><span>Studio</span></div></div>
-   <nav>{[['sites','Sites'],['templates','Templates'],['editor','Site Editor'],['branding','Branding'],['features','Features'],['deployments','Deployments'],['settings','Settings']].map(([id,label])=><button className={section===id?'navItem active':'navItem'} onClick={()=>setSection(id)} key={id}>{label}</button>)}</nav>
-   <div className="connection"><span className="dot"/> VintelTool source<small>DerivFX4/vinteltool</small></div>
+  <div className={menuOpen?'mobileScrim open':'mobileScrim'} onClick={()=>setMenuOpen(false)}/>
+  <aside className={menuOpen?'sidebar open':'sidebar'}>
+   <div className="brandRow"><div className="brand"><div className="brandMark">V</div><div><strong>Vintel<span>Tool</span></strong><small>Studio</small></div></div><button className="sidebarClose" onClick={()=>setMenuOpen(false)}>×</button></div>
+   <nav className="sideNav">{navGroups.map(group=><div className="navGroup" key={group.title}><span className="navTitle">{group.title}</span>{group.items.map(([id,label,icon])=><button className={section===id?'navItem active':'navItem'} onClick={()=>go(id)} key={id}><i>{icon}</i><span>{label}</span></button>)}</div>)}</nav>
+   <div className="sidebarBottom"><button className="navItem" onClick={()=>setMessage('Logout is ready for the authentication layer.') }><i>↪</i><span>Logout</span></button></div>
   </aside>
-  <main className="main">
-   <header className="topbar"><div><span className="eyebrow">SITE BUILDER</span><h1>{section==='sites'?'Your sites':section[0].toUpperCase()+section.slice(1)}</h1></div><button className="primary" onClick={()=>setSection('editor')}>+ Create site</button></header>
 
-   {section==='sites'&&<section>
-    <div className="hero"><div><span className="eyebrow">VINTELTOOL TEMPLATE SYSTEM</span><h2>Build sites from the VintelTool platform.</h2><p>Choose a template, configure the identity, then connect publishing to GitHub and Vercel.</p></div><div className="heroStat"><strong>{sites.length}</strong><span>sites</span></div></div>
-    <div className="grid">{sites.map(site=><article className="card" key={site.id}><div className="cardTop"><span className="icon">◈</span><span className={site.status==='Connected'?'status connected':'status'}>{site.status}</span></div><h3>{site.name}</h3><p>{site.domain}</p><div className="meta"><span>{TEMPLATES.find(t=>t.id===site.template)?.name}</span><button onClick={()=>{setSelectedSiteId(site.id);setSection('branding');}}>Branding</button></div></article>)}</div>
+  <main className="main">
+   <header className="topbar">
+    <div className="topLeft"><button className="menuButton" onClick={()=>setMenuOpen(true)}>☰</button><div><span className="eyebrow">VINTELTOOL STUDIO</span><h1>{section==='dashboard'?'Dashboard':section[0].toUpperCase()+section.slice(1)}</h1></div></div>
+    <div className="topActions"><button className="primary createTop" onClick={()=>go('editor')}>＋ Create Site</button><button className="iconButton" title="Studio information">ⓘ</button><button className="avatar">V</button></div>
+   </header>
+
+   {section==='dashboard'&&<section className="dashboardPage">
+    <div className="welcomeHero">
+      <div><span className="welcomeEyebrow">Welcome back,</span><h2>VintelTool Studio 👋</h2><p>Create, configure and deploy your VintelTool sites — all from one powerful platform.</p></div>
+      <div className="heroLogo"><div className="heroV">V</div><strong>Vintel<span>Tool</span></strong><small>STUDIO</small></div>
+    </div>
+    <div className="statsGrid">
+      <article className="statCard"><div className="statIcon">◎</div><div><span>Total Sites</span><strong>{sites.length}</strong><small>{sites.filter(s=>s.status!=='Draft').length} active · {sites.filter(s=>s.status==='Draft').length} draft</small></div><b>›</b></article>
+      <article className="statCard"><div className="statIcon">▤</div><div><span>Templates</span><strong>{TEMPLATES.length}</strong><small>VintelTool templates available</small></div><b>›</b></article>
+      <article className="statCard"><div className="statIcon">☁</div><div><span>Total Deployments</span><strong>0</strong><small>Connect GitHub & Vercel to publish</small></div><b>›</b></article>
+      <article className="statCard"><div className="statIcon">◎</div><div><span>Active Domains</span><strong>{sites.filter(s=>s.domain && s.domain!=='Not connected').length}</strong><small>{sites.filter(s=>s.domain && s.domain!=='Not connected').length} connected · pending setup</small></div><b>›</b></article>
+    </div>
+
+    <div className="contentCard">
+      <div className="cardHeading"><div><span className="eyebrow">WORKSPACE</span><h2>Recent Sites</h2></div><button className="ghostButton" onClick={()=>go('sites')}>View All →</button></div>
+      <div className="siteTable">
+       <div className="tableRow tableHead"><span>NAME</span><span>DOMAIN</span><span>STATUS</span><span>LAST UPDATED</span><span></span></div>
+       {dashboardSites.map((site,index)=><div className="tableRow" key={site.id}><span className="siteNameCell"><i className="siteMini">{site.name.charAt(0)}</i><strong>{site.name}</strong></span><span>{site.domain}</span><span><em className={site.status==='Draft'?'statusPill draft':'statusPill'}>{site.status}</em></span><span>{index===0?'Just now':index===1?'Today':'1 day ago'}</span><button className="rowMenu">⋮</button></div>)}
+      </div>
+      <div className="tableFoot">Showing 1 to {dashboardSites.length} of {sites.length} sites.</div>
+    </div>
+
+    <div className="contentCard quickCard">
+      <div className="cardHeading"><div><span className="eyebrow">WORKSPACE TOOLS</span><h2>Quick Actions</h2></div></div>
+      <div className="quickGrid">
+       {[
+        ['Create New Site','Start with a VintelTool template','＋','editor'],
+        ['Manage Templates','Browse VintelTool templates','◉','templates'],
+        ['Branding','Customize your site identity','✎','branding'],
+        ['Deploy Site','Push to GitHub & Vercel','◇','deployments'],
+        ['Connect Domain','Add your custom domain','◎','domains'],
+        ['View Tutorials','Learn & get support','▢','help']
+       ].map(([title,desc,icon,id])=><button className="quickAction" key={title} onClick={()=>go(id)}><i>{icon}</i><div><strong>{title}</strong><span>{desc}</span></div><b>›</b></button>)}
+      </div>
+      <div className="infoBanner"><span>✦</span><div><strong>Build powerful trading platforms with VintelTool</strong><small>Fast. Secure. Customizable. →</small></div></div>
+    </div>
    </section>}
 
-   {section==='templates'&&<section><div className="sectionHead"><h2>VintelTool templates</h2><p>Mapped to real areas of the existing repository.</p></div><div className="templateGrid">{TEMPLATES.map(t=><article className="template" key={t.id} onClick={()=>{setSelectedTemplate(t.id);setSection('editor')}}><div className="templateIcon">▦</div><h3>{t.name}</h3><p>{t.description}</p><code>{t.source}</code><div className="chips">{t.features.map(f=><span key={f}>{f}</span>)}</div></article>)}</div></section>}
+   {section==='sites'&&<section><div className="sectionHead"><span className="eyebrow">WORKSPACE</span><h2>Your Sites</h2><p>Manage sites created from the VintelTool template system.</p></div><div className="grid">{sites.map(site=><article className="card" key={site.id}><div className="cardTop"><span className="icon">◈</span><span className={site.status==='Connected'?'status connected':'status'}>{site.status}</span></div><h3>{site.name}</h3><p>{site.domain}</p><div className="meta"><span>{TEMPLATES.find(t=>t.id===site.template)?.name}</span><button onClick={()=>{setSelectedSiteId(site.id);go('branding');}}>Branding</button></div></article>)}</div></section>}
 
-   {section==='editor'&&<section className="editor"><div className="panel"><span className="eyebrow">CREATE / CONFIGURE</span><h2>New VintelTool site</h2><label>Site name<input value={siteName} onChange={e=>setSiteName(e.target.value)} placeholder="e.g. Advanced Trading Platform"/></label><label>Domain<input value={domain} onChange={e=>setDomain(e.target.value)} placeholder="example.com"/></label><label>Template<select value={selectedTemplate} onChange={e=>setSelectedTemplate(e.target.value)}>{TEMPLATES.map(t=><option value={t.id} key={t.id}>{t.name}</option>)}</select></label><button className="primary wide" onClick={createSite}>Create draft site</button>{message&&<p className="message">{message}</p>}</div><div className="preview"><div className="previewBar"><span>Live template preview</span><span className="pill">Draft</span></div><div className="previewBody"><span className="eyebrow">VINTELTOOL</span><h2>{template.name}</h2><p>{template.description}</p><div className="previewBlocks">{template.features.map((f,i)=><div key={f}><b>0{i+1}</b><span>{f}</span></div>)}</div><small>Source: {template.source}</small></div></div></section>}
+   {section==='templates'&&<section><div className="sectionHead"><span className="eyebrow">TEMPLATE SYSTEM</span><h2>VintelTool Templates</h2><p>These are mapped to real areas of the existing VintelTool repository.</p></div><div className="templateGrid">{TEMPLATES.map(t=><article className="template" key={t.id} onClick={()=>{setSelectedTemplate(t.id);go('editor')}}><div className="templateIcon">▦</div><h3>{t.name}</h3><p>{t.description}</p><code>{t.source}</code><div className="chips">{t.features.map(f=><span key={f}>{f}</span>)}</div></article>)}</div></section>}
+
+   {section==='editor'&&<section className="editor"><div className="panel"><span className="eyebrow">CREATE / CONFIGURE</span><h2>New VintelTool Site</h2><label>Site name<input value={siteName} onChange={e=>setSiteName(e.target.value)} placeholder="e.g. Advanced Trading Platform"/></label><label>Domain<input value={domain} onChange={e=>setDomain(e.target.value)} placeholder="example.com"/></label><label>Template<select value={selectedTemplate} onChange={e=>setSelectedTemplate(e.target.value)}>{TEMPLATES.map(t=><option value={t.id} key={t.id}>{t.name}</option>)}</select></label><button className="primary wide" onClick={createSite}>Create Draft Site</button>{message&&<p className="message">{message}</p>}</div><div className="preview"><div className="previewBar"><span>Live template preview</span><span className="pill">Draft</span></div><div className="previewBody"><span className="eyebrow">VINTELTOOL</span><h2>{template.name}</h2><p>{template.description}</p><div className="previewBlocks">{template.features.map((f,i)=><div key={f}><b>0{i+1}</b><span>{f}</span></div>)}</div><small>Source: {template.source}</small></div></div></section>}
 
    {section==='branding'&&<section className="brandingPage">
     <div className="sectionHead"><span className="eyebrow">SITE IDENTITY</span><h2>Branding</h2><p>Set the identity for each site. Upload images directly from your phone or computer.</p></div>
@@ -105,10 +153,12 @@ function App(){
     </div>:<div className="info"><h2>No sites yet</h2><p>Create a site first, then configure its branding.</p></div>}
    </section>}
 
+
    {section==='features'&&<Info title="Features" text="Enable or disable existing VintelTool capabilities per site: Dashboard, Bot Builder, Quick Strategy, Analysis, Charts, Tutorials and Deriv Course."/>}
-   {section==='deployments'&&<Info title="Deployments" text="The deployment layer is reserved for secure server-side GitHub and Vercel integrations. Tokens must never be shipped to browser code."/>}
-   {section==='settings'&&<section className="info"><span className="eyebrow">STUDIO</span><h2>Studio settings</h2><p>GitHub source: DerivFX4/vinteltool. Studio: DerivFX4/Vinteltoolstudio. Credentials stay server-side and are never placed in browser code.</p><div className="integration"><div><b>GitHub</b><span>{connections.github===undefined?'Not checked':connections.github?'Connected':'Needs attention'}</span></div><div><b>Vercel</b><span>{connections.vercel===undefined?'Not checked':connections.vercel?'Connected':'Needs attention'}</span></div></div><button className="primary" style={{marginTop:18}} onClick={checkConnections}>Check integrations</button>{message&&<p className="message">{message}</p>}</section>}
+   {(section==='deployments'||section==='github'||section==='vercel'||section==='domains'||section==='preview'||section==='help')&&<Info title={section==='help'?'Help & Support':section[0].toUpperCase()+section.slice(1)} text="This Studio area is connected to the existing VintelTool template system and is ready for its corresponding management workflow."/>}
+   {section==='settings'&&<section className="info"><span className="eyebrow">STUDIO</span><h2>Studio Settings</h2><p>GitHub source: DerivFX4/vinteltool. Studio: DerivFX4/Vinteltoolstudio. Credentials stay server-side and are never placed in browser code.</p><div className="integration"><div><b>GitHub</b><span>{connections.github===undefined?'Not checked':connections.github?'Connected':'Needs attention'}</span></div><div><b>Vercel</b><span>{connections.vercel===undefined?'Not checked':connections.vercel?'Connected':'Needs attention'}</span></div></div><button className="primary" style={{marginTop:18}} onClick={checkConnections}>Check Integrations</button>{message&&<p className="message">{message}</p>}</section>}
   </main>
+  <button className="chatButton" title="Help">◔</button>
  </div>;
 }
 

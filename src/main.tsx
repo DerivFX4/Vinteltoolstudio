@@ -4,7 +4,7 @@ import './styles.css';
 
 type Template = { id:string; name:string; description:string; source:string; features:string[] };
 type Site = { id:string; name:string; domain:string; template:string; status:string };
-type Branding = { siteName:string; logo:string; favicon:string; primary:string; secondary:string; accent:string; success:string; danger:string; warning:string; font:string; theme:'light'|'dark'; showBrandName:boolean; browserTitle:string; footerBranding:string; customCss:string };
+type Branding = { siteName:string; logo:string; favicon:string; primary:string; secondary:string; accent:string; success:string; danger:string; warning:string; font:string; theme:'light'|'dark'; showBrandName:boolean; browserTitle:string; footerBranding:string; customCss:string; titleSuffix:string; tabStyle:string; tabActiveColor:string; loginButtonColor:string; loginTextColor:string; loadBotColor:string; loadBotTextColor:string; botCardStyle:string };
 
 const TEMPLATES:Template[] = [
 {id:'core',name:'VintelTool Core',description:'Base VintelTool application shell and shared platform components.',source:'DerivFX4/vinteltool',features:['Dashboard','Navigation','Branding']},
@@ -17,7 +17,7 @@ const TEMPLATES:Template[] = [
 ];
 
 const initialSites:Site[] = [{id:'vinteltool',name:'VintelTool',domain:'www.vinteltool.site',template:'core',status:'Connected'}];
-const defaultBranding = (name:string):Branding => ({siteName:name,logo:'',favicon:'',primary:'#1f5eff',secondary:'#0f172a',accent:'#38bdf8',success:'#16a34a',danger:'#dc2626',warning:'#f59e0b',font:'Inter',theme:'light',showBrandName:true,browserTitle:name,footerBranding:name,customCss:''});
+const defaultBranding = (name:string):Branding => ({siteName:name,logo:'',favicon:'',primary:'#0B1F3A',secondary:'#0B1F3A',accent:'#00E5FF',success:'#16a34a',danger:'#dc2626',warning:'#f59e0b',font:'Inter',theme:'dark',showBrandName:true,browserTitle:name,footerBranding:name,customCss:'',titleSuffix:'Advanced Trading',tabStyle:'solid',tabActiveColor:'#00E5FF',loginButtonColor:'#0B1F3A',loginTextColor:'#ffffff',loadBotColor:'#0B1F3A',loadBotTextColor:'#ffffff',botCardStyle:'compact'});
 
 function loadSites():Site[]{ try { const value=localStorage.getItem('vinteltool-studio-sites'); return value?JSON.parse(value):initialSites; } catch { return initialSites; } }
 function loadBranding(sites:Site[]):Record<string,Branding>{ try { const value=localStorage.getItem('vinteltool-studio-branding'); if(value)return JSON.parse(value); } catch {} return Object.fromEntries(sites.map(s=>[s.id,defaultBranding(s.name)])); }
@@ -31,6 +31,8 @@ function App(){
  const [siteName,setSiteName]=useState('');
  const [domain,setDomain]=useState('');
  const [platform,setPlatform]=useState('dbot');
+ const [createDomain,setCreateDomain]=useState('');
+ const [commissionAccepted,setCommissionAccepted]=useState(false);
  const [sites,setSites]=useState<Site[]>(loadSites);
  const [selectedSiteId,setSelectedSiteId]=useState(sites[0]?.id||'');
  const [branding,setBranding]=useState<Record<string,Branding>>(()=>loadBranding(sites));
@@ -49,9 +51,12 @@ function App(){
    if(patch.siteName!==undefined)setSites(prev=>prev.map(s=>s.id===selectedSite.id?{...s,name:patch.siteName}:s));
  };
  const createSite=()=>{
-   if(!siteName.trim()){setMessage('Enter a site name first.');setCreateStep(1);return;}
+   if(!createDomain.trim()){setMessage('Enter a public domain first.');setCreateStep(1);return;}
+   if(!commissionAccepted){setMessage('Accept the commission and maintenance agreement to continue.');setCreateStep(1);return;}
+   if(!siteName.trim())setSiteName(createDomain.trim().split('.')[0]||'VintelTool');
    const id=crypto.randomUUID();
-   const newSite:Site={id,name:siteName.trim(),domain:domain.trim()||'Not connected',template:selectedTemplate,status:'Draft'};
+   const finalName=siteName.trim()||createDomain.trim().split('.')[0]||'VintelTool';
+   const newSite:Site={id,name:finalName,domain:createDomain.trim(),template:selectedTemplate,status:'Draft'};
    setSites(prev=>[...prev,newSite]);
    setBranding(prev=>({...prev,[id]:defaultBranding(newSite.name)}));
    setSelectedSiteId(id); setMessage('Site created as a draft.'); setSection('branding'); setCreateStep(0);
@@ -62,8 +67,8 @@ function App(){
  const go=(id:string)=>{setSection(id);setMenuOpen(false);};
  const startCreate=()=>{setSection('editor');setCreateStep(0);setMenuOpen(false);setMessage('');};
  const steps=['Platform Type','Basic Information','Branding','Theme'];
- const canContinue=createStep===0||createStep===2||createStep===3||Boolean(siteName.trim());
- const nextCreate=()=>{if(createStep===0){setCreateStep(1);return;}if(createStep===1){if(!siteName.trim()){setMessage('Enter a site name first.');return;}setCreateStep(2);return;}if(createStep<3)setCreateStep(v=>v+1);else createSite();};
+ const canContinue=createStep===0||createStep===2||createStep===3||Boolean(createDomain.trim()&&commissionAccepted);
+ const nextCreate=()=>{if(createStep===0){setCreateStep(1);return;}if(createStep===1){if(!createDomain.trim()){setMessage('Enter a public domain first.');return;}if(!commissionAccepted){setMessage('Accept the commission and maintenance agreement to continue.');return;}setCreateStep(2);return;}if(createStep<3)setCreateStep(v=>v+1);else createSite();};
  const previousCreate=()=>{if(createStep>0){setCreateStep(v=>v-1);setMessage('');}else go('dashboard');};
  const navGroups=[
   {title:'SITE MANAGEMENT',items:[['dashboard','Dashboard','▦'],['sites','Sites','◎'],['templates','Templates','▤'],['branding','Branding','◉'],['editor','Pages / Editor','□'],['features','Features','✣'],['preview','Preview','▣']]},
@@ -106,9 +111,30 @@ function App(){
         <div className="platformInfo"><span className="platformIcon">♙</span><div><h3>DBot Platform</h3><p>Visual bot builder, free bots, analytics, copy trading, and SmartCharts in one branded website.</p></div><b className="selectCircle">⌄</b></div>
        </button>
      </div></>}
-     {createStep===1&&<div className="createFormStep"><div className="createIntro"><h2>Basic Information</h2><p>Set the name and domain for your new VintelTool website.</p></div><div className="formCard"><label>Website name<input value={siteName} onChange={e=>setSiteName(e.target.value)} placeholder="e.g. Advanced Trading Platform"/></label><label>Domain<input value={domain} onChange={e=>setDomain(e.target.value)} placeholder="example.com"/></label><label>VintelTool template<select value={selectedTemplate} onChange={e=>setSelectedTemplate(e.target.value)}>{TEMPLATES.map(t=><option value={t.id} key={t.id}>{t.name}</option>)}</select></label>{message&&<p className="message">{message}</p>}</div></div>}
-     {createStep===2&&<div className="createFormStep"><div className="createIntro"><h2>Branding</h2><p>You can customize your logo, colors and identity after creating the site.</p></div><div className="createChoice"><div className="choiceIcon">◉</div><div><strong>Use VintelTool branding</strong><span>Continue with the Studio branding defaults, then customize everything in Branding.</span></div><button onClick={()=>go('branding')}>Customize later</button></div></div>}
-     {createStep===3&&<div className="createFormStep"><div className="createIntro"><h2>Theme</h2><p>Choose the initial visual theme for your site.</p></div><div className="themeChoiceGrid"><button className="themeChoice selected"><div className="themeMock lightMock"/><strong>Light</strong><span>Clean and bright</span></button><button className="themeChoice"><div className="themeMock darkMock"/><strong>Dark</strong><span>Trading-focused dark UI</span></button></div></div>}
+     {createStep===1&&<div className="createFormStep"><div className="createIntro"><h2>Basic Information</h2><p>Connect the domain that will be hosted and managed by VintelTool.</p></div><div className="formCard createBasicCard">
+       <label>Domain *<input value={createDomain} onChange={e=>setCreateDomain(e.target.value)} placeholder="example.com"/></label>
+       <p className="fieldHelp">Enter a public domain without a path, for example example.com. Connection type is selected automatically.</p>
+       <div className="centralAppCard"><span className="appCheck">✓</span><div><strong>Centralized App ID</strong><p>An App ID will be assigned to this VintelTool platform by the administrator. It enables the platform's Deriv OAuth/API connection to be managed centrally.</p></div></div>
+       <label className="agreementCard"><input type="checkbox" checked={commissionAccepted} onChange={e=>setCommissionAccepted(e.target.checked)}/><span><strong>Commission and maintenance agreement</strong><small>I agree to share 15% of the commission generated by this website with the developer to support ongoing website maintenance, hosting, and technical reliability. I understand that failure to pay the agreed share may result in the website being suspended. I receive the remaining 85% of all markup commission earned.</small></span></label>
+       {message&&<p className="message">{message}</p>}
+     </div></div>
+     {createStep===2&&<div className="createFormStep"><div className="createIntro"><h2>Branding & Assets</h2><p>Upload your logo and customize your VintelTool platform identity.</p></div><div className="formCard brandingWizardCard">
+       <label>Brand / Platform Name *<input value={siteName} onChange={e=>setSiteName(e.target.value)} placeholder="VintelTool"/></label>
+       <p className="fieldHelp">Auto-generated from your domain, but you can customize it.</p>
+       <label>Title Suffix *<input value={currentBrand.titleSuffix} onChange={e=>updateBrand({titleSuffix:e.target.value})} placeholder="Advanced Trading"/></label>
+       <p className="fieldHelp">Full title: {siteName||'VintelTool'} - {currentBrand.titleSuffix||'Advanced Trading'}</p>
+       <div className="browserMock"><div className="browserTop"><span>⌄</span><strong>{siteName||'VintelTool'} - {currentBrand.titleSuffix||'Advanced Trading'}</strong><span>＋</span></div><div className="browserAddress">‹ <span>{createDomain||'example.com'}</span></div><div className="browserSite"><b>{(siteName||'V').charAt(0).toUpperCase()}</b><strong>{siteName||'VintelTool'}</strong><em>powered by deriv</em></div></div>
+       <div className="wizardUpload"><strong>Logo Upload</strong><label className="uploadButton">Choose logo<input type="file" accept="image/*" onChange={e=>{const f=e.target.files?.[0];if(f){saveFile(f,data=>selectedSite&&updateBrand({logo:data}));}}}/></label><small>PNG, JPG, WebP, or SVG up to 5 MB</small></div>
+       <div className="wizardUpload"><strong>Favicon Upload <span>(Optional)</span></strong><label className="uploadButton">Choose favicon<input type="file" accept="image/*,.ico" onChange={e=>{const f=e.target.files?.[0];if(f){saveFile(f,data=>selectedSite&&updateBrand({favicon:data}));}}}/></label><small>Square PNG, ICO, or SVG up to 1 MB</small></div>
+     </div></div>
+     {createStep===3&&<div className="createFormStep themeWizard"><div className="createIntro"><h2>Theme</h2><p>Configure navigation, colors and Free Bots presentation using VintelTool components.</p></div>
+       <div className="themeSection"><h3>Tab Navigation</h3><p>Choose the navigation style and tab-specific colors.</p>
+        {['solid','underline','pill','stacked'].map(style=><button key={style} className={currentBrand.tabStyle===style?'themePreview selected':'themePreview'} onClick={()=>updateBrand({tabStyle:style})}><div className={'navMock '+style}><span>⌂ Dashboard</span><span className="active">♙ Bot Builder</span><span>⌁ Charts</span></div><strong>{style==='solid'?'Solid active tab':style==='underline'?'Underline tabs':style==='pill'?'Pill buttons':'Stacked icon tabs'}</strong>{currentBrand.tabStyle===style&&<b>✓</b>}</button>)}
+       </div>
+       <div className="themeColors"><h3>VintelTool Colors</h3>{[['primary','Primary Color *'],['tabActiveColor','Tab Active Color'],['loginButtonColor','Login / Sign Up Button Color'],['loginTextColor','Login / Sign Up Text Color'],['loadBotColor','Load Bot Button Color'],['loadBotTextColor','Load Bot Button Text Color']].map(([key,label])=><label key={key}>{label}<div className="wizardColor"><input type="color" value={(currentBrand as any)[key]} onChange={e=>updateBrand({[key]:e.target.value} as any)}/><input value={(currentBrand as any)[key]} onChange={e=>updateBrand({[key]:e.target.value} as any)}/></div></label>)}</div>
+       <div className="themeSection"><h3>Bot Card Style</h3><p>Choose how bots appear in the website's Free Bots library.</p>{['gradient','card','minimal','compact'].map(style=><button key={style} className={currentBrand.botCardStyle===style?'botStyle selected':'botStyle'} onClick={()=>updateBrand({botCardStyle:style})}><div className={'botMock '+style}><strong>1. Bi Trading Even Odd Bot</strong><span>Trading bot with built-in risk controls.</span><button type="button">Load Bot</button></div><strong>{style.charAt(0).toUpperCase()+style.slice(1)}</strong><small>{style==='gradient'?'Dark branded rows with strong contrast.':style==='card'?'Spacious cards with a premium presentation.':style==='minimal'?'Clean rows with subtle borders and no heavy shadow.':'Dense cards that display more bots at once.'}</small>{currentBrand.botCardStyle===style&&<b>✓</b>}</button>)}</div>
+     </div>}
+
     </div>
     <div className="createFooter"><button className="backButton" onClick={previousCreate}>Back</button><button className="continueButton" disabled={!canContinue} onClick={nextCreate}>{createStep===3?'Create Site':'Continue'}</button></div>
    </section>}

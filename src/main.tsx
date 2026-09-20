@@ -33,6 +33,7 @@ function App(){
  const [platform,setPlatform]=useState('dbot');
  const [createDomain,setCreateDomain]=useState('');
  const [commissionAccepted,setCommissionAccepted]=useState(false);
+ const [wizardBrand,setWizardBrand]=useState<Branding>(()=>defaultBranding('VintelTool'));
  const [sites,setSites]=useState<Site[]>(loadSites);
  const [selectedSiteId,setSelectedSiteId]=useState(sites[0]?.id||'');
  const [branding,setBranding]=useState<Record<string,Branding>>(()=>loadBranding(sites));
@@ -40,6 +41,7 @@ function App(){
  const [connections,setConnections]=useState<{github?:boolean;vercel?:boolean}>({});
  const selectedSite=sites.find(s=>s.id===selectedSiteId)||sites[0];
  const currentBrand=selectedSite?branding[selectedSite.id]||defaultBranding(selectedSite.name):defaultBranding('');
+ const updateWizardBrand=(patch:Partial<Branding>)=>setWizardBrand(prev=>({...prev,...patch}));
  const template=useMemo(()=>TEMPLATES.find(t=>t.id===selectedTemplate)??TEMPLATES[0],[selectedTemplate]);
 
  useEffect(()=>{localStorage.setItem('vinteltool-studio-sites',JSON.stringify(sites));},[sites]);
@@ -58,14 +60,14 @@ function App(){
    const finalName=siteName.trim()||createDomain.trim().split('.')[0]||'VintelTool';
    const newSite:Site={id,name:finalName,domain:createDomain.trim(),template:selectedTemplate,status:'Draft'};
    setSites(prev=>[...prev,newSite]);
-   setBranding(prev=>({...prev,[id]:defaultBranding(newSite.name)}));
+   setBranding(prev=>({...prev,[id]:{...wizardBrand,siteName:finalName,browserTitle:finalName+' - '+(wizardBrand.titleSuffix||'Advanced Trading')}}));
    setSelectedSiteId(id); setMessage('Site created as a draft.'); setSection('branding'); setCreateStep(0);
  };
  const checkConnections=async()=>{
    try{const[r1,r2]=await Promise.all([fetch('/api/github-check'),fetch('/api/vercel-check')]);setConnections({github:r1.ok,vercel:r2.ok});setMessage(r1.ok&&r2.ok?'GitHub and Vercel connections are working.':'One or more integrations need attention.');}catch{setMessage('Could not reach the Studio integration API.');}
  };
  const go=(id:string)=>{setSection(id);setMenuOpen(false);};
- const startCreate=()=>{setSection('editor');setCreateStep(0);setMenuOpen(false);setMessage('');};
+ const startCreate=()=>{setSection('editor');setCreateStep(0);setMenuOpen(false);setMessage('');setCreateDomain('');setSiteName('');setCommissionAccepted(false);setWizardBrand(defaultBranding('VintelTool'));};
  const steps=['Platform Type','Basic Information','Branding','Theme'];
  const canContinue=createStep===0||createStep===2||createStep===3||Boolean(createDomain.trim()&&commissionAccepted);
  const nextCreate=()=>{if(createStep===0){setCreateStep(1);return;}if(createStep===1){if(!createDomain.trim()){setMessage('Enter a public domain first.');return;}if(!commissionAccepted){setMessage('Accept the commission and maintenance agreement to continue.');return;}setCreateStep(2);return;}if(createStep<3)setCreateStep(v=>v+1);else createSite();};
@@ -119,20 +121,20 @@ function App(){
        {message&&<p className="message">{message}</p>}
      </div></div>
      {createStep===2&&<div className="createFormStep"><div className="createIntro"><h2>Branding & Assets</h2><p>Upload your logo and customize your VintelTool platform identity.</p></div><div className="formCard brandingWizardCard">
-       <label>Brand / Platform Name *<input value={siteName} onChange={e=>setSiteName(e.target.value)} placeholder="VintelTool"/></label>
+       <label>Brand / Platform Name *<input value={siteName} onChange={e=>{setSiteName(e.target.value);updateWizardBrand({siteName:e.target.value})}} placeholder="VintelTool"/></label>
        <p className="fieldHelp">Auto-generated from your domain, but you can customize it.</p>
-       <label>Title Suffix *<input value={currentBrand.titleSuffix} onChange={e=>updateBrand({titleSuffix:e.target.value})} placeholder="Advanced Trading"/></label>
-       <p className="fieldHelp">Full title: {siteName||'VintelTool'} - {currentBrand.titleSuffix||'Advanced Trading'}</p>
-       <div className="browserMock"><div className="browserTop"><span>⌄</span><strong>{siteName||'VintelTool'} - {currentBrand.titleSuffix||'Advanced Trading'}</strong><span>＋</span></div><div className="browserAddress">‹ <span>{createDomain||'example.com'}</span></div><div className="browserSite"><b>{(siteName||'V').charAt(0).toUpperCase()}</b><strong>{siteName||'VintelTool'}</strong><em>powered by deriv</em></div></div>
-       <div className="wizardUpload"><strong>Logo Upload</strong><label className="uploadButton">Choose logo<input type="file" accept="image/*" onChange={e=>{const f=e.target.files?.[0];if(f){saveFile(f,data=>selectedSite&&updateBrand({logo:data}));}}}/></label><small>PNG, JPG, WebP, or SVG up to 5 MB</small></div>
-       <div className="wizardUpload"><strong>Favicon Upload <span>(Optional)</span></strong><label className="uploadButton">Choose favicon<input type="file" accept="image/*,.ico" onChange={e=>{const f=e.target.files?.[0];if(f){saveFile(f,data=>selectedSite&&updateBrand({favicon:data}));}}}/></label><small>Square PNG, ICO, or SVG up to 1 MB</small></div>
+       <label>Title Suffix *<input value={wizardBrand.titleSuffix} onChange={e=>updateWizardBrand({titleSuffix:e.target.value})} placeholder="Advanced Trading"/></label>
+       <p className="fieldHelp">Full title: {siteName||'VintelTool'} - {wizardBrand.titleSuffix||'Advanced Trading'}</p>
+       <div className="browserMock"><div className="browserTop"><span>⌄</span><strong>{siteName||'VintelTool'} - {wizardBrand.titleSuffix||'Advanced Trading'}</strong><span>＋</span></div><div className="browserAddress">‹ <span>{createDomain||'example.com'}</span></div><div className="browserSite"><b>{(siteName||'V').charAt(0).toUpperCase()}</b><strong>{siteName||'VintelTool'}</strong><em>powered by deriv</em></div></div>
+       <div className="wizardUpload"><strong>Logo Upload</strong><label className="uploadButton">Choose logo<input type="file" accept="image/*" onChange={e=>{const f=e.target.files?.[0];if(f){saveFile(f,data=>updateWizardBrand({logo:data}));}}}/></label><small>PNG, JPG, WebP, or SVG up to 5 MB</small></div>
+       <div className="wizardUpload"><strong>Favicon Upload <span>(Optional)</span></strong><label className="uploadButton">Choose favicon<input type="file" accept="image/*,.ico" onChange={e=>{const f=e.target.files?.[0];if(f){saveFile(f,data=>updateWizardBrand({favicon:data}));}}}/></label><small>Square PNG, ICO, or SVG up to 1 MB</small></div>
      </div></div>
      {createStep===3&&<div className="createFormStep themeWizard"><div className="createIntro"><h2>Theme</h2><p>Configure navigation, colors and Free Bots presentation using VintelTool components.</p></div>
        <div className="themeSection"><h3>Tab Navigation</h3><p>Choose the navigation style and tab-specific colors.</p>
-        {['solid','underline','pill','stacked'].map(style=><button key={style} className={currentBrand.tabStyle===style?'themePreview selected':'themePreview'} onClick={()=>updateBrand({tabStyle:style})}><div className={'navMock '+style}><span>⌂ Dashboard</span><span className="active">♙ Bot Builder</span><span>⌁ Charts</span></div><strong>{style==='solid'?'Solid active tab':style==='underline'?'Underline tabs':style==='pill'?'Pill buttons':'Stacked icon tabs'}</strong>{currentBrand.tabStyle===style&&<b>✓</b>}</button>)}
+        {['solid','underline','pill','stacked'].map(style=><button key={style} className={wizardBrand.tabStyle===style?'themePreview selected':'themePreview'} onClick={()=>updateWizardBrand({tabStyle:style})}><div className={'navMock '+style}><span>⌂ Dashboard</span><span className="active">♙ Bot Builder</span><span>⌁ Charts</span></div><strong>{style==='solid'?'Solid active tab':style==='underline'?'Underline tabs':style==='pill'?'Pill buttons':'Stacked icon tabs'}</strong>{currentBrand.tabStyle===style&&<b>✓</b>}</button>)}
        </div>
-       <div className="themeColors"><h3>VintelTool Colors</h3>{[['primary','Primary Color *'],['tabActiveColor','Tab Active Color'],['loginButtonColor','Login / Sign Up Button Color'],['loginTextColor','Login / Sign Up Text Color'],['loadBotColor','Load Bot Button Color'],['loadBotTextColor','Load Bot Button Text Color']].map(([key,label])=><label key={key}>{label}<div className="wizardColor"><input type="color" value={(currentBrand as any)[key]} onChange={e=>updateBrand({[key]:e.target.value} as any)}/><input value={(currentBrand as any)[key]} onChange={e=>updateBrand({[key]:e.target.value} as any)}/></div></label>)}</div>
-       <div className="themeSection"><h3>Bot Card Style</h3><p>Choose how bots appear in the website's Free Bots library.</p>{['gradient','card','minimal','compact'].map(style=><button key={style} className={currentBrand.botCardStyle===style?'botStyle selected':'botStyle'} onClick={()=>updateBrand({botCardStyle:style})}><div className={'botMock '+style}><strong>1. Bi Trading Even Odd Bot</strong><span>Trading bot with built-in risk controls.</span><button type="button">Load Bot</button></div><strong>{style.charAt(0).toUpperCase()+style.slice(1)}</strong><small>{style==='gradient'?'Dark branded rows with strong contrast.':style==='card'?'Spacious cards with a premium presentation.':style==='minimal'?'Clean rows with subtle borders and no heavy shadow.':'Dense cards that display more bots at once.'}</small>{currentBrand.botCardStyle===style&&<b>✓</b>}</button>)}</div>
+       <div className="themeColors"><h3>VintelTool Colors</h3>{[['primary','Primary Color *'],['tabActiveColor','Tab Active Color'],['loginButtonColor','Login / Sign Up Button Color'],['loginTextColor','Login / Sign Up Text Color'],['loadBotColor','Load Bot Button Color'],['loadBotTextColor','Load Bot Button Text Color']].map(([key,label])=><label key={key}>{label}<div className="wizardColor"><input type="color" value={(wizardBrand as any)[key]} onChange={e=>updateWizardBrand({[key]:e.target.value} as any)}/><input value={(currentBrand as any)[key]} onChange={e=>updateBrand({[key]:e.target.value} as any)}/></div></label>)}</div>
+       <div className="themeSection"><h3>Bot Card Style</h3><p>Choose how bots appear in the website's Free Bots library.</p>{['gradient','card','minimal','compact'].map(style=><button key={style} className={wizardBrand.botCardStyle===style?'botStyle selected':'botStyle'} onClick={()=>updateWizardBrand({botCardStyle:style})}><div className={'botMock '+style}><strong>1. Bi Trading Even Odd Bot</strong><span>Trading bot with built-in risk controls.</span><button type="button">Load Bot</button></div><strong>{style.charAt(0).toUpperCase()+style.slice(1)}</strong><small>{style==='gradient'?'Dark branded rows with strong contrast.':style==='card'?'Spacious cards with a premium presentation.':style==='minimal'?'Clean rows with subtle borders and no heavy shadow.':'Dense cards that display more bots at once.'}</small>{wizardBrand.botCardStyle===style&&<b>✓</b>}</button>)}</div>
      </div>}
 
     </div>

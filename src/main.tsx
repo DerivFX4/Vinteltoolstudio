@@ -19,7 +19,7 @@ const TEMPLATES:Template[] = [
 const initialSites:Site[] = [{id:'vinteltool',name:'VintelTool',domain:'vinteltool.site',template:'core',status:'Connected',managed:true,repository:'DerivFX4/vinteltool',vercelProjectId:'prj_pnD1ziF2OuQi22JxIqqNPKTFVYnY'}];
 const defaultBranding = (name:string):Branding => ({siteName:name,logo:'',favicon:'',primary:'#1f5eff',secondary:'#0f172a',accent:'#38bdf8',success:'#16a34a',danger:'#dc2626',warning:'#f59e0b',font:'Inter',theme:'light',showBrandName:true,browserTitle:name,footerBranding:name,customCss:''});
 
-function loadSites():Site[]{ try { const value=localStorage.getItem('vinteltool-studio-sites'); return value?JSON.parse(value):initialSites; } catch { return initialSites; } }
+function loadSites():Site[]{ try { const value=localStorage.getItem('vinteltool-studio-sites'); const saved:Site[]=value?JSON.parse(value):[]; const managed=initialSites[0]; const withoutManaged=saved.filter(s=>s.id!==managed.id&&s.domain.replace(/^www\\./,'')!==managed.domain); return [managed,...withoutManaged]; } catch { return initialSites; } }
 function loadBranding(sites:Site[]):Record<string,Branding>{ try { const value=localStorage.getItem('vinteltool-studio-branding'); if(value)return JSON.parse(value); } catch {} return Object.fromEntries(sites.map(s=>[s.id,defaultBranding(s.name)])); }
 function saveFile(file:File,onDone:(data:string)=>void){ const reader=new FileReader(); reader.onload=()=>onDone(String(reader.result||'')); reader.readAsDataURL(file); }
 

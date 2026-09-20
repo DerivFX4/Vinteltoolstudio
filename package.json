@@ -1,0 +1,9 @@
+{
+  "name": "vinteltool-studio",
+  "version": "0.1.0",
+  "private": true,
+  "engines": { "node": ">=22" },
+  "scripts": { "dev": "rsbuild dev --port 4010", "build": "rsbuild build", "type-check": "tsc --noEmit" },
+  "dependencies": { "@rsbuild/core": "^1.0.1", "@rsbuild/plugin-react": "^1.0.1", "react": "^19.2.8", "react-dom": "^19.2.8" },
+  "devDependencies": { "@types/react": "^19.2.18", "@types/react-dom": "^19.2.4", "typescript": "^5.5.3" }
+}

@@ -1,10 +1,6 @@
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 export default async function handler(req:Request){
  if(req.method!=='GET')return json({error:'GET required.'},405);
- const key=process.env.STUDIO_ADMIN_KEY;
- if(!key)return json({error:'Configure STUDIO_ADMIN_KEY in Vercel to enable protected deployment inspection.'},503);
- const supplied=req.headers.get('x-studio-admin-key')||'';
- if(supplied.length!==key.length||supplied!==key)return json({error:'Administrator authorization failed.'},401);
  const token=process.env.STUDIO_VERCEL_TOKEN,team=process.env.STUDIO_VERCEL_TEAM_ID;
  if(!token||!team)return json({error:'STUDIO_VERCEL_TOKEN or STUDIO_VERCEL_TEAM_ID is missing.'},503);
  const url=new URL('https://api.vercel.com/v6/deployments');

@@ -1,129 +1,47 @@
 type PublishRequest = {
-  siteId?: string;
   domain?: string;
   branding?: {
-    siteName?: string;
-    primary?: string;
-    secondary?: string;
-    accent?: string;
-    success?: string;
-    danger?: string;
-    warning?: string;
-    font?: string;
-    theme?: 'light'|'dark';
-    showBrandName?: boolean;
-    browserTitle?: string;
-    footerBranding?: string;
-    logo?: string;
-    favicon?: string;
+    siteName?: string; primary?: string; secondary?: string; accent?: string;
+    success?: string; danger?: string; warning?: string; font?: string;
+    theme?: 'light'|'dark'; showBrandName?: boolean; browserTitle?: string;
+    footerBranding?: string; customCss?: string;
   };
 };
-
 const allowedSite = 'vinteltool.site';
 const owner = () => process.env.GITHUB_OWNER || 'DerivFX4';
 const repoName = () => process.env.GITHUB_TEMPLATE_REPO || 'vinteltool';
-
+const json = (data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 export default async function handler(req: Request) {
-  if (req.method && req.method !== 'POST') {
-    return new Response(JSON.stringify({ok:false,error:'POST required.'}), {status:405,headers:{'content-type':'application/json'}});
-  }
-
+  if (req.method !== 'POST') return json({ok:false,error:'POST required.'},405);
+  const adminKey = process.env.STUDIO_ADMIN_KEY;
+  if (!adminKey) return json({ok:false,error:'Publishing is locked: configure STUDIO_ADMIN_KEY in Vercel before publishing.'},503);
+  const supplied = req.headers.get('x-studio-admin-key') || '';
+  if (supplied.length !== adminKey.length || supplied !== adminKey) return json({ok:false,error:'Administrator authorization failed.'},401);
   const token = process.env.GITHUB_TOKEN;
-  if (!token) {
-    return new Response(JSON.stringify({ok:false,error:'GitHub credentials are not configured.'}), {status:500,headers:{'content-type':'application/json'}});
-  }
-
-  let body: PublishRequest;
-  try { body = await req.json(); } catch {
-    return new Response(JSON.stringify({ok:false,error:'Invalid JSON body.'}), {status:400,headers:{'content-type':'application/json'}});
-  }
-
-  if ((body.domain || allowedSite).replace(/^www\./,'') !== allowedSite) {
-    return new Response(JSON.stringify({ok:false,error:'This Studio publisher is restricted to vinteltool.site.'}), {status:403,headers:{'content-type':'application/json'}});
-  }
-
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-  };
-  const base = `https://api.github.com/repos/${encodeURIComponent(owner())}/${encodeURIComponent(repoName())}`;
-  const fileUrl = `${base}/contents/brand.config.json`;
-
-  const existingResponse = await fetch(fileUrl, {headers});
-  const existing = await existingResponse.json();
-  if (!existingResponse.ok || !existing.content || !existing.sha) {
-    return new Response(JSON.stringify({ok:false,error:existing.message||'Could not read VintelTool brand.config.json.'}), {status:502,headers:{'content-type':'application/json'}});
-  }
-
-  let config: any;
-  try {
-    const raw = atob(String(existing.content).replace(/\n/g,''));
-    config = JSON.parse(raw);
-  } catch {
-    return new Response(JSON.stringify({ok:false,error:'VintelTool brand.config.json could not be parsed.'}), {status:502,headers:{'content-type':'application/json'}});
-  }
-
-  const b = body.branding || {};
-  config.brand_name = b.siteName || config.brand_name;
-  config.domain_name = b.siteName ? `${b.siteName}.site` : config.domain_name;
-  config.brand_domain = allowedSite;
-  config.brand_hostname = {
-    ...(config.brand_hostname || {}),
-    production: allowedSite + '/dashboard',
-  };
-  config.colors = {
-    ...(config.colors || {}),
-    primary: b.primary || config.colors?.primary,
-    secondary: b.secondary || config.colors?.secondary,
-    tertiary: b.accent || config.colors?.tertiary,
-    success: b.success || config.colors?.success,
-    danger: b.danger || config.colors?.danger,
-    warning: b.warning || config.colors?.warning,
-  };
-  config.typography = {
-    ...(config.typography || {}),
-    font_family: {
-      ...(config.typography?.font_family || {}),
-      primary: b.font || config.typography?.font_family?.primary,
-    },
-  };
-  config.platform = {
-    ...(config.platform || {}),
-    name: b.siteName || config.platform?.name,
-    show_name: b.showBrandName ?? config.platform?.show_name ?? true,
-    logo_path: b.logo ? '/studio-logo' : (config.platform?.logo_path || '/logo.jpg'),
-    hostname: {
-      ...(config.platform?.hostname || {}),
-      production: {
-        ...(config.platform?.hostname?.production || {}),
-        com: 'www.vinteltool.site',
-      },
-    },
-  };
-
-  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(config, null, 4) + '\n')));
-  const updateResponse = await fetch(fileUrl, {
-    method:'PUT',
-    headers:{...headers,'Content-Type':'application/json'},
-    body:JSON.stringify({
-      message:`Studio: update vinteltool.site branding`,
-      content:encoded,
-      sha:existing.sha,
-      branch:'main',
-    }),
-  });
-  const updated = await updateResponse.json();
-
-  if (!updateResponse.ok) {
-    return new Response(JSON.stringify({ok:false,error:updated.message||'GitHub update failed.'}), {status:updateResponse.status,headers:{'content-type':'application/json'}});
-  }
-
-  return new Response(JSON.stringify({
-    ok:true,
-    site:'vinteltool.site',
-    repository:`${owner()}/${repoName()}`,
-    commit:updated.commit?.sha||null,
-    message:'Branding published to the VintelTool source repository. Vercel will deploy the connected site automatically.',
-  }), {headers:{'content-type':'application/json'}});
+  if (!token) return json({ok:false,error:'GitHub credentials are not configured.'},500);
+  let body:PublishRequest;
+  try { body=await req.json(); } catch { return json({ok:false,error:'Invalid JSON body.'},400); }
+  if ((body.domain || allowedSite).replace(/^www\./,'').toLowerCase() !== allowedSite) return json({ok:false,error:'This publisher is restricted to vinteltool.site.'},403);
+  const headers={Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
+  const fileUrl=`https://api.github.com/repos/${encodeURIComponent(owner())}/${encodeURIComponent(repoName())}/contents/brand.config.json?ref=main`;
+  const existingResponse=await fetch(fileUrl,{headers});
+  const existing=await existingResponse.json();
+  if(!existingResponse.ok||!existing.content||!existing.sha) return json({ok:false,error:existing.message||'Could not read brand.config.json.'},502);
+  let config:any;
+  try { config=JSON.parse(atob(String(existing.content).replace(/\n/g,''))); } catch { return json({ok:false,error:'brand.config.json could not be parsed.'},502); }
+  const b=body.branding||{};
+  if(b.siteName!==undefined) config.brand_name=b.siteName;
+  config.brand_domain=allowedSite;
+  if(b.browserTitle!==undefined) config.browser_title=b.browserTitle;
+  if(b.footerBranding!==undefined) config.footer_branding=b.footerBranding;
+  if(b.customCss!==undefined) config.custom_css=b.customCss;
+  config.colors={...(config.colors||{}),primary:b.primary||config.colors?.primary,secondary:b.secondary||config.colors?.secondary,tertiary:b.accent||config.colors?.tertiary,success:b.success||config.colors?.success,danger:b.danger||config.colors?.danger,warning:b.warning||config.colors?.warning};
+  config.typography={...(config.typography||{}),font_family:{...(config.typography?.font_family||{}),primary:b.font||config.typography?.font_family?.primary}};
+  config.theme_config={...(config.theme_config||{}),default_theme:b.theme||config.theme_config?.default_theme};
+  config.platform={...(config.platform||{}),name:b.siteName||config.platform?.name,show_name:b.showBrandName??config.platform?.show_name??true,hostname:{...(config.platform?.hostname||{}),production:{...(config.platform?.hostname?.production||{}),com:'www.vinteltool.site'}}};
+  const encoded=btoa(unescape(encodeURIComponent(JSON.stringify(config,null,2)+'\n')));
+  const updateResponse=await fetch(fileUrl.replace('?ref=main',''),{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({message:'Studio: update vinteltool.site brand settings',content:encoded,sha:existing.sha,branch:'main'})});
+  const updated=await updateResponse.json();
+  if(!updateResponse.ok) return json({ok:false,error:updated.message||'GitHub update failed.'},updateResponse.status);
+  return json({ok:true,site:allowedSite,repository:`${owner()}/${repoName()}`,commit:updated.commit?.sha||null,message:'Supported brand settings committed to GitHub. Vercel deployment status must be checked separately.'});
 }

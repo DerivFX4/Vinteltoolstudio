@@ -10,7 +10,7 @@ export default async function handler(req:Request){
  const data=await r.json();
  if(!r.ok||!data.content)return json({ok:false,error:data.message||'Could not load production site configuration.'},r.status||502);
  try{
-  const config=JSON.parse(atob(String(data.content).replace(/\\n/g,'')));
+  const config=JSON.parse(atob(String(data.content).replace(/\n/g,'')));
   return json({ok:true,repository:`${owner}/${repo}`,branch:'main',config});
  }catch{return json({ok:false,error:'Production brand configuration is not valid JSON.'},502);}
 }

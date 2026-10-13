@@ -13,10 +13,12 @@ const repoName = () => process.env.GITHUB_TEMPLATE_REPO || 'vinteltool';
 const json = (data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 export default async function handler(req: Request) {
   if (req.method !== 'POST') return json({ok:false,error:'POST required.'},405);
-  const adminKey = process.env.STUDIO_ADMIN_KEY;
-  if (!adminKey) return json({ok:false,error:'Publishing is locked: configure STUDIO_ADMIN_KEY in Vercel before publishing.'},503);
-  const supplied = req.headers.get('x-studio-admin-key') || '';
-  if (supplied.length !== adminKey.length || supplied !== adminKey) return json({ok:false,error:'Administrator authorization failed.'},401);
+  // Studio key entry was removed for one-tap publishing. Restrict browser requests to the
+  // known Studio origin; this is a usability guard, not a substitute for administrator login.
+  const origin = req.headers.get('origin') || '';
+  if (origin !== 'https://vinteltoolstudio-nine.vercel.app') {
+    return json({ok:false,error:'Publish requests must come from the VintelTool Studio site.'},403);
+  }
   const token = process.env.GITHUB_TOKEN;
   if (!token) return json({ok:false,error:'GitHub credentials are not configured.'},500);
   let body:PublishRequest;

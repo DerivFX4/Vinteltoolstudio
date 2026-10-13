@@ -13,7 +13,7 @@ type PublishRequest = {
 };
 const allowedSite = 'vinteltool.site';
 const owner = () => process.env.PRODUCTION_SITE_OWNER || process.env.GITHUB_OWNER || 'DerivFX4';
-const repoName = () => process.env.PRODUCTION_SITE_REPO || 'app-vinteltool-site';
+const repoName = () => process.env.PRODUCTION_SITE_REPO || 'vinteltool';
 const json = (data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 export default async function handler(req: Request) {
   if (req.method !== 'POST') return json({ok:false,error:'POST required.'},405);

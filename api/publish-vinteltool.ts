@@ -2,6 +2,7 @@ type PublishRequest = {
   domain?: string;
   botBuilder?: {market?:string;contract?:string;duration?:number;stake?:number;takeProfit?:number;stopLoss?:number;entryCondition?:string;blocks?:string[]};
   platformSettings?: {defaultLanding?:string;sessionTimeoutSeconds?:string|number;platformMode?:string;enableDerivOAuth?:boolean};
+  websiteElements?: Array<{id:string;page:string;label:string;type:string;content:string;visible:boolean;style:string;href:string}>;
   branding?: {
     siteName?: string; primary?: string; secondary?: string; accent?: string;
     success?: string; danger?: string; warning?: string; font?: string;
@@ -36,7 +37,9 @@ export default async function handler(req: Request) {
   const b=body.branding||{};
   const bot=body.botBuilder||{};
   const platformSettings=body.platformSettings||{};
-  config.studio_settings={...(config.studio_settings||{}),bot_builder:{...(config.studio_settings?.bot_builder||{}),...bot},platform:{...(config.studio_settings?.platform||{}),...platformSettings}};
+  const websiteElements=Array.isArray(body.websiteElements)?body.websiteElements.slice(0,500):undefined;
+  if(websiteElements&&websiteElements.some((e:any)=>!e||typeof e.id!=='string'||typeof e.page!=='string'||typeof e.content!=='string'))return json({ok:false,error:'Invalid website element data.'},400);
+  config.studio_settings={...(config.studio_settings||{}),bot_builder:{...(config.studio_settings?.bot_builder||{}),...bot},platform:{...(config.studio_settings?.platform||{}),...platformSettings},website_editor:{...(config.studio_settings?.website_editor||{}),...(websiteElements?{elements:websiteElements}:{})}};
   if(b.siteName!==undefined) config.brand_name=b.siteName;
   config.brand_domain=allowedSite;
   config.domain_name=allowedSite;
@@ -52,5 +55,5 @@ export default async function handler(req: Request) {
   const updateResponse=await fetch(fileUrl.replace('?ref=main',''),{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({message:'Studio: update vinteltool.site brand settings',content:encoded,sha:existing.sha,branch:'main'})});
   const updated=await updateResponse.json();
   if(!updateResponse.ok) return json({ok:false,error:updated.message||'GitHub update failed.'},updateResponse.status);
-  return json({ok:true,site:allowedSite,repository:`${owner()}/${repoName()}`,branch:'main',saved:{branding:true,botBuilder:!!body.botBuilder,platformSettings:!!body.platformSettings},commit:updated.commit?.sha||null,message:'Brand configuration committed to the production repository main branch. Vercel should deploy the resulting commit if the production project is connected to this repository.'});
+  return json({ok:true,site:allowedSite,repository:`${owner()}/${repoName()}`,branch:'main',saved:{branding:true,botBuilder:!!body.botBuilder,platformSettings:!!body.platformSettings,websiteElements:websiteElements!==undefined,websiteElementCount:websiteElements?.length??null},commit:updated.commit?.sha||null,message:'Brand configuration committed to the production repository main branch. Vercel should deploy the resulting commit if the production project is connected to this repository.'});
 }

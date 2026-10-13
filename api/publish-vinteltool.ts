@@ -3,6 +3,7 @@ type PublishRequest = {
   botBuilder?: {market?:string;contract?:string;duration?:number;stake?:number;takeProfit?:number;stopLoss?:number;entryCondition?:string;blocks?:string[]};
   platformSettings?: {defaultLanding?:string;sessionTimeoutSeconds?:string|number;platformMode?:string;enableDerivOAuth?:boolean};
   websiteElements?: Array<{id:string;page:string;label:string;type:string;content:string;visible:boolean;style:string;href:string}>;
+  botStore?: Array<{id:string;name:string;description:string;category:string;filename:string;xml:string;visible:boolean;updatedAt:string}>;
   branding?: {
     siteName?: string; primary?: string; secondary?: string; accent?: string;
     success?: string; danger?: string; warning?: string; font?: string;
@@ -38,8 +39,10 @@ export default async function handler(req: Request) {
   const bot=body.botBuilder||{};
   const platformSettings=body.platformSettings||{};
   const websiteElements=Array.isArray(body.websiteElements)?body.websiteElements.slice(0,500):undefined;
+  const botStore=Array.isArray(body.botStore)?body.botStore.slice(0,100):undefined;
+  if(botStore&&(botStore.some((bot:any)=>!bot||typeof bot.id!=='string'||typeof bot.name!=='string'||typeof bot.xml!=='string'||!/<\\s*xml\\b|<xml[\\s>]/i.test(bot.xml)||!/<block\\b/i.test(bot.xml)||bot.xml.length>350000)||botStore.reduce((sum:number,bot:any)=>sum+(typeof bot.xml==='string'?bot.xml.length:0),0)>2000000))return json({ok:false,error:'Invalid Bot Store data. Each bot must contain Blockly XML under 350 KB and the complete store must be under 2 MB.'},400);
   if(websiteElements&&websiteElements.some((e:any)=>!e||typeof e.id!=='string'||typeof e.page!=='string'||typeof e.content!=='string'))return json({ok:false,error:'Invalid website element data.'},400);
-  config.studio_settings={...(config.studio_settings||{}),bot_builder:{...(config.studio_settings?.bot_builder||{}),...bot},platform:{...(config.studio_settings?.platform||{}),...platformSettings},website_editor:{...(config.studio_settings?.website_editor||{}),...(websiteElements?{elements:websiteElements}:{})}};
+  config.studio_settings={...(config.studio_settings||{}),bot_builder:{...(config.studio_settings?.bot_builder||{}),...bot},platform:{...(config.studio_settings?.platform||{}),...platformSettings},website_editor:{...(config.studio_settings?.website_editor||{}),...(websiteElements?{elements:websiteElements}:{})},bot_store:{...(config.studio_settings?.bot_store||{}),...(botStore?{bots:botStore}:{})}};
   if(b.siteName!==undefined) config.brand_name=b.siteName;
   config.brand_domain=allowedSite;
   config.domain_name=allowedSite;
@@ -55,5 +58,5 @@ export default async function handler(req: Request) {
   const updateResponse=await fetch(fileUrl.replace('?ref=main',''),{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({message:'Studio: update vinteltool.site brand settings',content:encoded,sha:existing.sha,branch:'main'})});
   const updated=await updateResponse.json();
   if(!updateResponse.ok) return json({ok:false,error:updated.message||'GitHub update failed.'},updateResponse.status);
-  return json({ok:true,site:allowedSite,repository:`${owner()}/${repoName()}`,branch:'main',saved:{branding:true,botBuilder:!!body.botBuilder,platformSettings:!!body.platformSettings,websiteElements:websiteElements!==undefined,websiteElementCount:websiteElements?.length??null},commit:updated.commit?.sha||null,message:'Brand configuration committed to the production repository main branch. Vercel should deploy the resulting commit if the production project is connected to this repository.'});
+  return json({ok:true,site:allowedSite,repository:`${owner()}/${repoName()}`,branch:'main',saved:{branding:true,botBuilder:!!body.botBuilder,platformSettings:!!body.platformSettings,websiteElements:websiteElements!==undefined,websiteElementCount:websiteElements?.length??null,botStore:botStore!==undefined,botCount:botStore?.length??null},commit:updated.commit?.sha||null,message:'Brand configuration committed to the production repository main branch. Vercel should deploy the resulting commit if the production project is connected to this repository.'});
 }

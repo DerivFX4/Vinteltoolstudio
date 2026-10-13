@@ -1,8 +1,8 @@
 export default async function handler() {
   const token = process.env.GITHUB_TOKEN;
-  const owner = process.env.GITHUB_OWNER;
-  const repo = process.env.GITHUB_REPO;
-  if (!token || !owner || !repo) return new Response(JSON.stringify({ ok:false, error:'GitHub environment variables are not configured.' }), { status:500, headers:{'content-type':'application/json'} });
+  const owner = process.env.PRODUCTION_SITE_OWNER || process.env.GITHUB_OWNER || 'DerivFX4';
+  const repo = process.env.PRODUCTION_SITE_REPO || 'app-vinteltool-site';
+  if (!token) return new Response(JSON.stringify({ ok:false, error:'GITHUB_TOKEN is not configured.' }), { status:500, headers:{'content-type':'application/json'} });
   const r = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
     headers: { Authorization: `Bearer ${token}`, Accept:'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28' }
   });

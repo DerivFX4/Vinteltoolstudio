@@ -51,7 +51,7 @@ export default function StudioApp(){
    const r=await fetch('/api/publish-vinteltool',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({siteId:'vinteltool',domain:'vinteltool.site',branding:brand,botBuilder:{market:botMarket,contract:botContract,duration:Number(botDuration),stake:Number(botStake),takeProfit:Number(botTP),stopLoss:Number(botSL),entryCondition:botEntry,blocks:botBlocks},platformSettings})});
    const d=await r.json().catch(()=>({}));
    if(!r.ok||!d.ok){setStatus(d.error||'Publishing failed.');return;}
-   setStatus('Published to DerivFX4/vinteltool main. Commit: '+(d.commit||'created')+'. Vercel will build the production site if Git integration is active. Check Deployments for the result.');
+   setStatus('Published to the configured production-site repository main. Commit: '+(d.commit||'created')+'. Vercel will build the production site if Git integration is active. Check Deployments for the result.');
   }catch{setStatus('Could not reach the publisher API.');}
   finally{setBusy(false);}
  }

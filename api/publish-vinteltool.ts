@@ -8,8 +8,8 @@ type PublishRequest = {
   };
 };
 const allowedSite = 'vinteltool.site';
-const owner = () => process.env.GITHUB_OWNER || 'DerivFX4';
-const repoName = () => process.env.GITHUB_TEMPLATE_REPO || 'vinteltool';
+const owner = () => process.env.PRODUCTION_SITE_OWNER || process.env.GITHUB_OWNER || 'DerivFX4';
+const repoName = () => process.env.PRODUCTION_SITE_REPO || 'app-vinteltool-site';
 const json = (data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 export default async function handler(req: Request) {
   if (req.method !== 'POST') return json({ok:false,error:'POST required.'},405);
@@ -28,7 +28,7 @@ export default async function handler(req: Request) {
   const fileUrl=`https://api.github.com/repos/${encodeURIComponent(owner())}/${encodeURIComponent(repoName())}/contents/brand.config.json?ref=main`;
   const existingResponse=await fetch(fileUrl,{headers});
   const existing=await existingResponse.json();
-  if(!existingResponse.ok||!existing.content||!existing.sha) return json({ok:false,error:existing.message||'Could not read brand.config.json.'},502);
+  if(!existingResponse.ok||!existing.content||!existing.sha) return json({ok:false,error:existing.message||'Could not read brand.config.json from the production site repository. Set PRODUCTION_SITE_REPO to the GitHub repository actually connected to www.vinteltool.site, and ensure it contains brand.config.json.'},502);
   let config:any;
   try { config=JSON.parse(atob(String(existing.content).replace(/\n/g,''))); } catch { return json({ok:false,error:'brand.config.json could not be parsed.'},502); }
   const b=body.branding||{};

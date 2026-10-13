@@ -1,5 +1,7 @@
 type PublishRequest = {
   domain?: string;
+  botBuilder?: {market?:string;contract?:string;duration?:number;stake?:number;takeProfit?:number;stopLoss?:number;entryCondition?:string;blocks?:string[]};
+  platformSettings?: {defaultLanding?:string;sessionTimeoutSeconds?:string|number;platformMode?:string;enableDerivOAuth?:boolean};
   branding?: {
     siteName?: string; primary?: string; secondary?: string; accent?: string;
     success?: string; danger?: string; warning?: string; font?: string;
@@ -9,7 +11,7 @@ type PublishRequest = {
 };
 const allowedSite = 'vinteltool.site';
 const owner = () => process.env.PRODUCTION_SITE_OWNER || process.env.GITHUB_OWNER || 'DerivFX4';
-const repoName = () => process.env.PRODUCTION_SITE_REPO || 'app-vinteltool-site';
+const repoName = () => process.env.PRODUCTION_SITE_REPO || 'vinteltool';
 const json = (data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 export default async function handler(req: Request) {
   if (req.method !== 'POST') return json({ok:false,error:'POST required.'},405);
@@ -32,6 +34,9 @@ export default async function handler(req: Request) {
   let config:any;
   try { config=JSON.parse(atob(String(existing.content).replace(/\n/g,''))); } catch { return json({ok:false,error:'brand.config.json could not be parsed.'},502); }
   const b=body.branding||{};
+  const bot=body.botBuilder||{};
+  const platformSettings=body.platformSettings||{};
+  config.studio_settings={...(config.studio_settings||{}),bot_builder:{...(config.studio_settings?.bot_builder||{}),...bot},platform:{...(config.studio_settings?.platform||{}),...platformSettings}};
   if(b.siteName!==undefined) config.brand_name=b.siteName;
   config.brand_domain=allowedSite;
   config.domain_name=allowedSite;
@@ -47,5 +52,5 @@ export default async function handler(req: Request) {
   const updateResponse=await fetch(fileUrl.replace('?ref=main',''),{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({message:'Studio: update vinteltool.site brand settings',content:encoded,sha:existing.sha,branch:'main'})});
   const updated=await updateResponse.json();
   if(!updateResponse.ok) return json({ok:false,error:updated.message||'GitHub update failed.'},updateResponse.status);
-  return json({ok:true,site:allowedSite,repository:`${owner()}/${repoName}`,branch:'main',commit:updated.commit?.sha||null,message:'Brand configuration committed to the production repository main branch. Vercel should deploy the resulting commit if the production project is connected to this repository.'});
+  return json({ok:true,site:allowedSite,repository:`${owner()}/${repoName()}`,branch:'main',saved:{branding:true,botBuilder:!!body.botBuilder,platformSettings:!!body.platformSettings},commit:updated.commit?.sha||null,message:'Brand configuration committed to the production repository main branch. Vercel should deploy the resulting commit if the production project is connected to this repository.'});
 }

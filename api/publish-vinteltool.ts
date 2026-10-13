@@ -34,16 +34,18 @@ export default async function handler(req: Request) {
   const b=body.branding||{};
   if(b.siteName!==undefined) config.brand_name=b.siteName;
   config.brand_domain=allowedSite;
+  config.domain_name=allowedSite;
+  config.brand_hostname={...(config.brand_hostname||{}),production:'www.vinteltool.site'};
   if(b.browserTitle!==undefined) config.browser_title=b.browserTitle;
   if(b.footerBranding!==undefined) config.footer_branding=b.footerBranding;
   if(b.customCss!==undefined) config.custom_css=b.customCss;
   config.colors={...(config.colors||{}),primary:b.primary||config.colors?.primary,secondary:b.secondary||config.colors?.secondary,tertiary:b.accent||config.colors?.tertiary,success:b.success||config.colors?.success,danger:b.danger||config.colors?.danger,warning:b.warning||config.colors?.warning};
-  config.typography={...(config.typography||{}),font_family:{...(config.typography?.font_family||{}),primary:b.font||config.typography?.font_family?.primary}};
+  config.typography={...(config.typography||{}),font_family:{...(config.typography?.font_family||{}),primary:b.font||config.typography?.font_family?.primary,secondary:b.font||config.typography?.font_family?.secondary}};
   config.theme_config={...(config.theme_config||{}),default_theme:b.theme||config.theme_config?.default_theme};
   config.platform={...(config.platform||{}),name:b.siteName||config.platform?.name,show_name:b.showBrandName??config.platform?.show_name??true,hostname:{...(config.platform?.hostname||{}),production:{...(config.platform?.hostname?.production||{}),com:'www.vinteltool.site'}}};
   const encoded=btoa(unescape(encodeURIComponent(JSON.stringify(config,null,2)+'\n')));
   const updateResponse=await fetch(fileUrl.replace('?ref=main',''),{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({message:'Studio: update vinteltool.site brand settings',content:encoded,sha:existing.sha,branch:'main'})});
   const updated=await updateResponse.json();
   if(!updateResponse.ok) return json({ok:false,error:updated.message||'GitHub update failed.'},updateResponse.status);
-  return json({ok:true,site:allowedSite,repository:`${owner()}/${repoName()}`,commit:updated.commit?.sha||null,message:'Supported brand settings committed to GitHub. Vercel deployment status must be checked separately.'});
+  return json({ok:true,site:allowedSite,repository:`${owner()}/${repoName}`,branch:'main',commit:updated.commit?.sha||null,message:'Brand configuration committed to the production repository main branch. Vercel should deploy the resulting commit if the production project is connected to this repository.'});
 }
